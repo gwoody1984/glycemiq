@@ -39,8 +39,6 @@ def getInputData(patient_no, lag = 4*3600):
     bg_df['insulin'] = np.zeros(bg_df.shape[0])
     bg_df['carbs'] = np.zeros(bg_df.shape[0])
     
-    lag = 4*3600 # lookback for how long insulin and food should affect blood glucose
-    
     # columns for amounts of insulin and food that qualify as being within
     # period of affecting blood glucose
     for i in range(bg_df.shape[0]):
