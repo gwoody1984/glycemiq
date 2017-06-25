@@ -12,7 +12,7 @@ from datetime import datetime
 
 # input data function to read in patient data and return dataframe
 def getInputData(patient_no, lag = 4*3600):
-    json_data = json.loads(open('c:/users/sunil/documents/glycemiq/patient' + str(patient_no) + '.json').read())
+    json_data = json.loads(open('../data/patient' + str(patient_no) + '.json').read())
     bg_data = json_data['bloodGlucose']
     insulin_data = json_data['bolusInsulin']
     food_data = json_data['food']
