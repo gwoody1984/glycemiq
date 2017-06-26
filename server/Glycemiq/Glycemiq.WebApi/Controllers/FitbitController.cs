@@ -2,8 +2,12 @@
 using Fitbit.Api.Portable.OAuth2;
 using Fitbit.Models;
 using Glycemiq.WebApi.Models;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Serialization;
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Configuration;
 using System.Linq;
 using System.Net;
@@ -68,20 +72,38 @@ namespace Glycemiq.WebApi.Controllers
 
             // register a subscription for the authorized user
             // TODO: Remove hardcoded subscriber id -- should be the equivalent of our user id
-            await fitbitClient.AddSubscriptionAsync(APICollectionType.activities, "123456789");
+            await fitbitClient.AddSubscriptionAsync(APICollectionType.user, "123456789");
 
             return Ok();
         }
 
         [HttpGet]
         [Route(nameof(SubscriberEndpoint))]
-        public IHttpActionResult SubscriberEndpoint([FromBody] JArray updates, [FromUri] string verify)
+        public IHttpActionResult SubscriberEndpoint([FromUri] string verify)
         {
             if (verify == verificationCode)
                 return StatusCode(HttpStatusCode.NoContent);
             return NotFound();
+        }
 
+        [HttpPost]
+        [Route(nameof(SubscriberEndpoint))]
+        public IHttpActionResult SubscriberEndpoint([FromBody] JArray updates)
+        {
+            // TODO: Check X-Fitbit-Signature Header for authenticity
             // TODO: implement logic to get updates
+            try
+            {
+                var jsonSerializersettings = new JsonSerializerSettings
+                {
+                    ContractResolver = new CamelCasePropertyNamesContractResolver()
+                };
+
+                var notifications = updates.ToObject<List<FitbitNotification>>();
+            }
+            finally { }
+            
+            return StatusCode(HttpStatusCode.NoContent);
         }
 
 

@@ -13,6 +13,8 @@ namespace Glycemiq.WebApi.Models
         Location,
         Nutrition,
         Sleep,
-        Weight
+        Weight,
+        Profile,
+        Settings
     }
 }
