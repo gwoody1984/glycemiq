@@ -18,7 +18,14 @@ namespace Glycemiq.WebApi.Controllers
     [RoutePrefix("fitbit")]
     public class FitbitController : ApiController
     {
-        HttpSessionState Session = HttpContext.Current.Session;
+        private HttpSessionState session = HttpContext.Current.Session;
+
+        private static string clientId = ConfigurationManager.AppSettings["FitbitClientId"];
+        private static string clientSecret = ConfigurationManager.AppSettings["FitbitClientSecret"];
+        private static string verificationCode = ConfigurationManager.AppSettings["FitbitSubscriptionVerificationCode"];
+
+        private const string AppCredentials = "AppCredentials";
+        private const string FitbitClient = "FitbitClient";
 
         //
         // GET: /Fitbit/Authorize/
@@ -29,15 +36,14 @@ namespace Glycemiq.WebApi.Controllers
         {
             var appCredentials = new FitbitAppCredentials()
             {
-                ClientId = ConfigurationManager.AppSettings["FitbitClientId"],
-                ClientSecret = ConfigurationManager.AppSettings["FitbitClientSecret"]
+                ClientId = clientId,
+                ClientSecret = clientSecret
             };
-            //make sure you've set these up in Web.Config under <appSettings>:
 
-            Session["AppCredentials"] = appCredentials;
+            session[AppCredentials] = appCredentials;
 
-            //Provide the App Credentials. You get those by registering your app at dev.fitbit.com
-            //Configure Fitbit authenticaiton request to perform a callback to this constructor's Callback method
+            // provide the App Credentials. You get those by registering your app at dev.fitbit.com
+            // configure Fitbit authenticaiton request to perform a callback to this controller's result method
             var authenticator = new OAuth2Helper(appCredentials, $"{Request.RequestUri.GetLeftPart(UriPartial.Authority)}/fitbit/{nameof(RegistrationResult).ToLowerInvariant()}");
             string[] scopes = Enum.GetValues(typeof(FitbitAuthScope)).Cast<FitbitAuthScope>().Select(x => x.ToString().ToLowerInvariant()).ToArray();
 
@@ -51,7 +57,7 @@ namespace Glycemiq.WebApi.Controllers
         [Route(nameof(RegistrationResult))]
         public async Task<IHttpActionResult> RegistrationResult(string code)
         {
-            FitbitAppCredentials appCredentials = (FitbitAppCredentials)Session["AppCredentials"];
+            FitbitAppCredentials appCredentials = (FitbitAppCredentials)session[AppCredentials];
 
             var authenticator = new OAuth2Helper(appCredentials, $"{Request.RequestUri.GetLeftPart(UriPartial.Authority)}/fitbit/{nameof(RegistrationResult).ToLowerInvariant()}");
 
@@ -61,21 +67,23 @@ namespace Glycemiq.WebApi.Controllers
             var fitbitClient = GetFitbitClient(accessToken);
 
             // register a subscription for the authorized user
-            // TODO: This is failing because we don't have a publicly reachable Subscriber Endpoint
             // TODO: Remove hardcoded subscriber id -- should be the equivalent of our user id
-            await fitbitClient.AddSubscriptionAsync(APICollectionType.user, "123456789");  
+            await fitbitClient.AddSubscriptionAsync(APICollectionType.activities, "123456789");
 
             return Ok();
         }
 
-        [HttpPost]
+        [HttpGet]
         [Route(nameof(SubscriberEndpoint))]
-        public IHttpActionResult SubscriberEndpoint([FromBody] JArray updates)
+        public IHttpActionResult SubscriberEndpoint([FromBody] JArray updates, [FromUri] string verify)
         {
-            // TODO: Do something here to verify that the endpoint is reachable
-            return StatusCode(HttpStatusCode.NoContent);
+            if (verify == verificationCode)
+                return StatusCode(HttpStatusCode.NoContent);
+            return NotFound();
+
+            // TODO: implement logic to get updates
         }
-        
+
 
         /// <summary>
         /// HttpClient and hence FitbitClient are designed to be long-lived for the duration of the session. This method ensures only one client is created for the duration of the session.
@@ -84,13 +92,13 @@ namespace Glycemiq.WebApi.Controllers
         /// <returns></returns>
         private FitbitClient GetFitbitClient(OAuth2AccessToken accessToken = null)
         {
-            if (Session["FitbitClient"] == null)
+            if (session[FitbitClient] == null)
             {
                 if (accessToken != null)
                 {
-                    var appCredentials = (FitbitAppCredentials)Session["AppCredentials"];
+                    var appCredentials = (FitbitAppCredentials)session[AppCredentials];
                     FitbitClient client = new FitbitClient(appCredentials, accessToken);
-                    Session["FitbitClient"] = client;
+                    session[FitbitClient] = client;
                     return client;
                 }
                 else
@@ -101,7 +109,7 @@ namespace Glycemiq.WebApi.Controllers
             }
             else
             {
-                return (FitbitClient)Session["FitbitClient"];
+                return (FitbitClient)session[FitbitClient];
             }
         }
 
